@@ -27,7 +27,7 @@ const TOOLTIPS: Record<string, TooltipInfo> = {
   },
   enhanced_parser: {
     title: 'Enhanced Parser',
-    description: 'Advanced parsing with intrinsics detection (~100 CUDA intrinsics), index pattern analysis, and warp operation detection.',
+    description: 'Advanced parsing with 150+ CUDA intrinsics detection, index pattern analysis, warp operations, and tensor core intrinsics.',
   },
   semantic: {
     title: 'Semantic Analyzer',
@@ -39,7 +39,7 @@ const TOOLTIPS: Record<string, TooltipInfo> = {
   },
   pattern: {
     title: 'Pattern Detector',
-    description: '7 pattern matchers: Elementwise, GEMM, Reduction, Scan, Stencil, Histogram, Sparse. Detects variants like warp_shuffle, multi_block, 2D/3D stencils.',
+    description: '18 pattern matchers with 60+ variants. Core: Elementwise, GEMM, Reduction, Scan, Stencil. ML/DL: Convolution, Pooling, Normalization, Fused. LLM: Attention, RoPE, KV Cache, Embedding, Quantization. Specialized: Sparse, Histogram, Sorting, FFT.',
   },
   ir_builder: {
     title: 'IR Builder',
@@ -51,7 +51,7 @@ const TOOLTIPS: Record<string, TooltipInfo> = {
   },
   templates: {
     title: 'Template CodeGen',
-    description: 'Variant-specific code templates: tree_reduction, warp_shuffle, stencil_2d_5pt, etc. Falls back to generic generator.',
+    description: '14 template files with 60+ variant-specific generators. Supports Flash Attention, RoPE, KV Cache, Quantization, Convolution, Normalization, and more.',
   },
   diagnostics: {
     title: 'Diagnostics',
@@ -286,7 +286,7 @@ export default function ScientificVisualization({
             />
             <text x="550" y="105" textAnchor="middle" fill={textColor} fontSize="8" fontFamily="monospace">Pattern</text>
             <text x="550" y="117" textAnchor="middle" fill={textColor} fontSize="8" fontFamily="monospace">Detector</text>
-            <text x="550" y="129" textAnchor="middle" fill={mutedColor} fontSize="7" fontFamily="monospace">(7 types)</text>
+            <text x="550" y="129" textAnchor="middle" fill={mutedColor} fontSize="7" fontFamily="monospace">(18 types)</text>
             {getNodeStatus(4) === 'completed' && <text x="595" y="85" fill={greenColor} fontSize="11">✓</text>}
           </g>
 
@@ -406,27 +406,56 @@ export default function ScientificVisualization({
           </g>
 
           {/* ===== PATTERN LABELS ===== */}
-          <g transform="translate(480, 200)">
-            <text x="70" y="0" textAnchor="middle" fill={mutedColor} fontSize="8" fontFamily="monospace">Patterns:</text>
-            <rect x="0" y="8" width="50" height="16" fill="none" stroke={mutedColor} strokeWidth="0.5" rx="2" />
-            <text x="25" y="20" textAnchor="middle" fill={textColor} fontSize="7" fontFamily="monospace">GEMM</text>
-            <rect x="55" y="8" width="50" height="16" fill="none" stroke={mutedColor} strokeWidth="0.5" rx="2" />
-            <text x="80" y="20" textAnchor="middle" fill={textColor} fontSize="7" fontFamily="monospace">Reduction</text>
-            <rect x="110" y="8" width="40" height="16" fill="none" stroke={mutedColor} strokeWidth="0.5" rx="2" />
-            <text x="130" y="20" textAnchor="middle" fill={textColor} fontSize="7" fontFamily="monospace">Scan</text>
-            <rect x="0" y="28" width="45" height="16" fill="none" stroke={mutedColor} strokeWidth="0.5" rx="2" />
-            <text x="22" y="40" textAnchor="middle" fill={textColor} fontSize="7" fontFamily="monospace">Stencil</text>
-            <rect x="50" y="28" width="55" height="16" fill="none" stroke={mutedColor} strokeWidth="0.5" rx="2" />
-            <text x="77" y="40" textAnchor="middle" fill={textColor} fontSize="7" fontFamily="monospace">Histogram</text>
-            <rect x="110" y="28" width="45" height="16" fill="none" stroke={mutedColor} strokeWidth="0.5" rx="2" />
-            <text x="132" y="40" textAnchor="middle" fill={textColor} fontSize="7" fontFamily="monospace">Sparse</text>
+          <g transform="translate(210, 200)">
+            {/* Core Patterns */}
+            <text x="0" y="0" textAnchor="start" fill={mutedColor} fontSize="7" fontFamily="monospace" fontWeight="600">Core:</text>
+            <rect x="30" y="-8" width="40" height="14" fill="none" stroke={mutedColor} strokeWidth="0.5" rx="2" />
+            <text x="50" y="2" textAnchor="middle" fill={textColor} fontSize="6" fontFamily="monospace">GEMM</text>
+            <rect x="75" y="-8" width="50" height="14" fill="none" stroke={mutedColor} strokeWidth="0.5" rx="2" />
+            <text x="100" y="2" textAnchor="middle" fill={textColor} fontSize="6" fontFamily="monospace">Reduction</text>
+            <rect x="130" y="-8" width="35" height="14" fill="none" stroke={mutedColor} strokeWidth="0.5" rx="2" />
+            <text x="147" y="2" textAnchor="middle" fill={textColor} fontSize="6" fontFamily="monospace">Scan</text>
+            <rect x="170" y="-8" width="40" height="14" fill="none" stroke={mutedColor} strokeWidth="0.5" rx="2" />
+            <text x="190" y="2" textAnchor="middle" fill={textColor} fontSize="6" fontFamily="monospace">Stencil</text>
+
+            {/* ML/DL Patterns */}
+            <text x="0" y="18" textAnchor="start" fill={mutedColor} fontSize="7" fontFamily="monospace" fontWeight="600">ML/DL:</text>
+            <rect x="35" y="10" width="55" height="14" fill="none" stroke={mutedColor} strokeWidth="0.5" rx="2" />
+            <text x="62" y="20" textAnchor="middle" fill={textColor} fontSize="6" fontFamily="monospace">Convolution</text>
+            <rect x="95" y="10" width="40" height="14" fill="none" stroke={mutedColor} strokeWidth="0.5" rx="2" />
+            <text x="115" y="20" textAnchor="middle" fill={textColor} fontSize="6" fontFamily="monospace">Pooling</text>
+            <rect x="140" y="10" width="60" height="14" fill="none" stroke={mutedColor} strokeWidth="0.5" rx="2" />
+            <text x="170" y="20" textAnchor="middle" fill={textColor} fontSize="6" fontFamily="monospace">Normalization</text>
+
+            {/* LLM Patterns */}
+            <text x="0" y="36" textAnchor="start" fill={greenColor} fontSize="7" fontFamily="monospace" fontWeight="600">LLM:</text>
+            <rect x="25" y="28" width="50" height="14" fill="none" stroke={greenColor} strokeWidth="0.5" rx="2" />
+            <text x="50" y="38" textAnchor="middle" fill={textColor} fontSize="6" fontFamily="monospace">Attention</text>
+            <rect x="80" y="28" width="35" height="14" fill="none" stroke={greenColor} strokeWidth="0.5" rx="2" />
+            <text x="97" y="38" textAnchor="middle" fill={textColor} fontSize="6" fontFamily="monospace">RoPE</text>
+            <rect x="120" y="28" width="48" height="14" fill="none" stroke={greenColor} strokeWidth="0.5" rx="2" />
+            <text x="144" y="38" textAnchor="middle" fill={textColor} fontSize="6" fontFamily="monospace">KV Cache</text>
+            <rect x="173" y="28" width="35" height="14" fill="none" stroke={greenColor} strokeWidth="0.5" rx="2" />
+            <text x="190" y="38" textAnchor="middle" fill={textColor} fontSize="6" fontFamily="monospace">Quant</text>
+
+            {/* Specialized */}
+            <text x="0" y="54" textAnchor="start" fill={mutedColor} fontSize="7" fontFamily="monospace" fontWeight="600">Other:</text>
+            <rect x="30" y="46" width="40" height="14" fill="none" stroke={mutedColor} strokeWidth="0.5" rx="2" />
+            <text x="50" y="56" textAnchor="middle" fill={textColor} fontSize="6" fontFamily="monospace">Sparse</text>
+            <rect x="75" y="46" width="50" height="14" fill="none" stroke={mutedColor} strokeWidth="0.5" rx="2" />
+            <text x="100" y="56" textAnchor="middle" fill={textColor} fontSize="6" fontFamily="monospace">Histogram</text>
+            <rect x="130" y="46" width="40" height="14" fill="none" stroke={mutedColor} strokeWidth="0.5" rx="2" />
+            <text x="150" y="56" textAnchor="middle" fill={textColor} fontSize="6" fontFamily="monospace">Sorting</text>
+            <rect x="175" y="46" width="30" height="14" fill="none" stroke={mutedColor} strokeWidth="0.5" rx="2" />
+            <text x="190" y="56" textAnchor="middle" fill={textColor} fontSize="6" fontFamily="monospace">FFT</text>
           </g>
 
           {/* ===== VARIANT INFO ===== */}
           <g transform="translate(650, 200)">
-            <text x="90" y="0" textAnchor="middle" fill={mutedColor} fontSize="8" fontFamily="monospace">Variants:</text>
-            <text x="90" y="15" textAnchor="middle" fill={textColor} fontSize="7" fontFamily="monospace">tree_reduction | warp_shuffle | multi_block</text>
-            <text x="90" y="28" textAnchor="middle" fill={textColor} fontSize="7" fontFamily="monospace">stencil_2d_5pt | stencil_3d | spmv_csr</text>
+            <text x="90" y="0" textAnchor="middle" fill={mutedColor} fontSize="8" fontFamily="monospace">60+ Variants:</text>
+            <text x="90" y="15" textAnchor="middle" fill={textColor} fontSize="6" fontFamily="monospace">flash_attention | flash_attention_v2 | multi_head_attention</text>
+            <text x="90" y="28" textAnchor="middle" fill={textColor} fontSize="6" fontFamily="monospace">rope_standard | rope_neox | kvcache_paged | quant_int8</text>
+            <text x="90" y="41" textAnchor="middle" fill={textColor} fontSize="6" fontFamily="monospace">layernorm | rmsnorm | conv_2d | conv_depthwise | bitonic_sort</text>
           </g>
 
           {/* ===== ARROWS ===== */}

@@ -7,8 +7,6 @@ import { semanticAnalyzer, SemanticAnalysisResult } from './ast/semantic-analyze
 import { memoryAnalyzer, MemoryAnalysisResult } from './ast/memory-analyzer';
 import { cudaParser, EnhancedParseResult } from './parser';
 import { patternMatcher, PatternAnalysis } from './patterns/matcher';
-import { histogramMatcher } from './patterns/matchers/histogram';
-import { sparseMatcher } from './patterns/matchers/sparse';
 import { irBuilder } from './ir/builder';
 import { irOptimizer, EnhancedKernelIR } from './ir';
 import { codeGenerator } from './codegen/generator';
@@ -116,27 +114,16 @@ export async function transpile(code: string): Promise<EnhancedTranspileResult> 
 }
 
 /**
- * Detect the best pattern including new histogram and sparse patterns
+ * Detect the best pattern using the unified pattern matcher orchestrator
+ * Supports all 18 archetypes with 60+ variants
  */
 function detectBestPattern(kernel: any, enhanced: EnhancedParseResult): PatternMatch {
-  // Get all pattern matches
-  const allMatches = patternMatcher.matchAll(kernel);
-
-  // Also check new patterns
-  const histogramMatch = histogramMatcher.match(kernel);
-  const sparseMatch = sparseMatcher.match(kernel);
-
-  // Combine all matches
-  const allPatterns = [
-    ...allMatches,
-    histogramMatch,
-    sparseMatch,
-  ];
-
-  // Sort by confidence and return best match
-  allPatterns.sort((a, b) => b.confidence - a.confidence);
-
-  const best = allPatterns[0];
+  // Use the pattern matcher orchestrator which includes all 18 pattern matchers:
+  // - Core: elementwise, gemm, reduction, scan, stencil
+  // - ML/DL: convolution, pooling, normalization, fused
+  // - LLM: attention, rope, kvcache, embedding, quantization
+  // - Specialized: sparse, histogram, sorting, fft
+  const best = patternMatcher.match(kernel);
 
   // Boost confidence based on enhanced analysis signals
   let boostedConfidence = best.confidence;
