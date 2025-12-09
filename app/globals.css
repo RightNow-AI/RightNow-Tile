@@ -1,26 +1,267 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('/fonts/JetBrainsMono-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: optional;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('/fonts/JetBrainsMono-Light.woff2') format('woff2');
+  font-weight: 300;
+  font-style: normal;
+  font-display: optional;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('/fonts/JetBrainsMono-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: optional;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('/fonts/JetBrainsMono-SemiBold.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: optional;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('/fonts/JetBrainsMono-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: optional;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+@layer utilities {
+  .animate-blink {
+    animation: blink 1s infinite;
   }
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background-color: rgba(118, 185, 0, 0.35);
+}
+
+* { box-sizing: border-box; }
+
+/* Light theme (default) */
+:root {
+  --bg-primary: #fafafa;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f5f5f5;
+  --bg-editor: #ffffff;
+  --text-primary: #1a1a1a;
+  --text-secondary: #666666;
+  --text-muted: #999999;
+  --border-primary: #e5e5e5;
+  --border-secondary: #eeeeee;
+  --nvidia-green: #76B900;
+  --radius: 0.5rem;
+}
+
+/* Dark theme */
+[data-theme="dark"] {
+  --bg-primary: #14120b;
+  --bg-secondary: #1b1913;
+  --bg-tertiary: #0d0c08;
+  --bg-editor: #0d0c08;
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.7);
+  --text-muted: rgba(255, 255, 255, 0.5);
+  --border-primary: rgba(255, 255, 255, 0.1);
+  --border-secondary: rgba(255, 255, 255, 0.05);
+}
+
+/* Apply theme colors */
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+/* Tailwind dark mode utilities */
+@layer base {
+  .dark {
+    color-scheme: dark;
+  }
+}
+
+@layer components {
+  .rn-button {
+    @apply h-10 inline-flex items-center justify-center border px-4 font-jetbrains text-sm uppercase select-none transition-all;
+    border-radius: 2px;
+    background-color: rgba(255, 255, 255, 0.10);
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.40);
+  }
+  .rn-button:hover:not(:disabled) { border-color: #ffffff; }
+
+  .rn-button-pro {
+    @apply h-10 inline-flex items-center justify-center border px-6 font-jetbrains text-sm uppercase select-none font-bold transition-all;
+    border-radius: 2px;
+    background-color: #76B900;
+    color: #000000;
+    border-color: #76B900;
+  }
+  .rn-button-pro:hover:not(:disabled) { background-color: #87d100; }
+
+  .rn-button--primary {
+    @apply h-10 inline-flex items-center justify-center border px-6 font-jetbrains text-sm uppercase select-none font-bold transition-all;
+    border-radius: 2px;
+    background-color: #ffffff;
+    color: #000000;
+  }
+
+  .rn-button--outline {
+    @apply h-10 inline-flex items-center justify-center border px-6 font-jetbrains text-sm uppercase select-none transition-all;
+    border-radius: 2px;
+    background-color: transparent;
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.40);
+  }
+
+  .card-offset {
+    position: relative;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: 2px;
+  }
+
+  .pattern-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0.75rem;
+    background: rgba(118, 185, 0, 0.15);
+    border: 1px solid rgba(118, 185, 0, 0.4);
+    border-radius: 2px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: #76B900;
+  }
+
+  .editor-container {
+    background: var(--bg-editor);
+    border: 1px solid var(--border-primary);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .editor-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 1rem;
+    background: var(--bg-tertiary);
+    border-bottom: 1px solid var(--border-primary);
+  }
+
+  .editor-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    letter-spacing: 0.05em;
+  }
+
+  /* Monaco Editor styling for dark theme */
+  [data-theme="dark"] .monaco-editor,
+  [data-theme="dark"] .monaco-editor .margin,
+  [data-theme="dark"] .monaco-editor-background,
+  [data-theme="dark"] .monaco-editor .inputarea.ime-input,
+  [data-theme="dark"] .monaco-editor .overflow-guard,
+  [data-theme="dark"] .monaco-editor .monaco-scrollable-element,
+  [data-theme="dark"] section[style*="monaco"] {
+    background-color: #0d0c08 !important;
+  }
+
+  /* Monaco minimap styling for dark theme */
+  [data-theme="dark"] .monaco-editor .minimap {
+    background-color: #1b1913 !important;
+  }
+  [data-theme="dark"] .monaco-editor .minimap-slider {
+    background-color: rgba(118, 185, 0, 0.2) !important;
+  }
+  [data-theme="dark"] .monaco-editor .minimap-slider:hover {
+    background-color: rgba(118, 185, 0, 0.3) !important;
+  }
+  [data-theme="dark"] .monaco-editor .minimap-slider.active {
+    background-color: rgba(118, 185, 0, 0.4) !important;
+  }
+
+  /* Monaco minimap styling for light theme */
+  .monaco-editor .minimap {
+    background-color: #f5f5f5 !important;
+  }
+  .monaco-editor .minimap-slider {
+    background-color: rgba(118, 185, 0, 0.15) !important;
+  }
+  .monaco-editor .minimap-slider:hover {
+    background-color: rgba(118, 185, 0, 0.25) !important;
+  }
+  .monaco-editor .minimap-slider.active {
+    background-color: rgba(118, 185, 0, 0.35) !important;
+  }
+
+  /* Monaco cursor styling */
+  .monaco-editor .cursor {
+    background-color: #76B900 !important;
+    border-color: #76B900 !important;
+  }
+  [data-theme="dark"] .monaco-editor .cursor {
+    background-color: #76B900 !important;
+    border-color: #76B900 !important;
+  }
+
+  /* Fix cursor positioning - ensure proper font metrics */
+  .monaco-editor .view-lines {
+    font-feature-settings: "liga" 0, "calt" 0;
+  }
+  .monaco-editor .inputarea {
+    font-family: 'JetBrains Mono', monospace !important;
+  }
+
+  /* Pipeline visualization theming */
+  .pipeline-container {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-primary);
+    border-radius: 4px;
+  }
+
+  .pipeline-node {
+    fill: var(--bg-secondary);
+    stroke: var(--border-primary);
+  }
+
+  .pipeline-text {
+    fill: var(--text-primary);
+  }
+
+  .pipeline-text-muted {
+    fill: var(--text-muted);
+  }
 }

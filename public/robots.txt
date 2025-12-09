@@ -1,0 +1,14 @@
+# robots.txt for RightNow Tile
+# https://tile.rightnowai.co
+
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://tile.rightnowai.co/sitemap.xml
+
+# Crawl-delay (optional, be nice to servers)
+Crawl-delay: 1
+
+# Disallow API endpoints from indexing
+Disallow: /api/

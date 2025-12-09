@@ -1,0 +1,21 @@
+{
+  "name": "RightNow Tile",
+  "short_name": "RN Tile",
+  "description": "CUDA to cuTile Python Transpiler for NVIDIA Blackwell GPUs",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#14120b",
+  "theme_color": "#76B900",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/logo.webp",
+      "sizes": "192x192",
+      "type": "image/webp",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["developer", "productivity", "utilities"],
+  "lang": "en",
+  "dir": "ltr"
+}
