@@ -59,7 +59,18 @@ lib/
 │       ├── scan.ts            # Prefix sums
 │       ├── stencil.ts         # Neighbor computations
 │       ├── histogram.ts       # Histogram patterns
-│       └── sparse.ts          # Sparse matrix operations
+│       ├── sparse.ts          # Sparse matrix operations
+│       ├── attention.ts       # Flash Attention, MHA
+│       ├── fused.ts           # Fused kernel patterns
+│       ├── fft.ts             # FFT patterns
+│       ├── convolution.ts     # CNN convolutions
+│       ├── sorting.ts         # Sorting algorithms
+│       ├── pooling.ts         # Pooling operations
+│       ├── normalization.ts   # LayerNorm, BatchNorm, etc.
+│       ├── embedding.ts       # Embedding lookup
+│       ├── rope.ts            # Rotary Position Embedding
+│       ├── kvcache.ts         # KV cache operations
+│       └── quantization.ts    # INT8/INT4/FP8 quantization
 ├── ir/                        # Intermediate representation
 │   ├── types.ts               # Enhanced IR types
 │   ├── builder.ts             # IR construction
@@ -70,6 +81,21 @@ lib/
 │   ├── templates/             # Variant-specific templates
 │   │   ├── reduction.ts       # Reduction variants
 │   │   ├── stencil.ts         # Stencil variants
+│   │   ├── gemm.ts            # GEMM variants
+│   │   ├── scan.ts            # Scan variants
+│   │   ├── histogram.ts       # Histogram variants
+│   │   ├── sparse.ts          # SpMV/SpMM variants
+│   │   ├── attention.ts       # Flash Attention templates
+│   │   ├── fused.ts           # Fused kernel templates
+│   │   ├── fft.ts             # FFT templates
+│   │   ├── convolution.ts     # Convolution templates
+│   │   ├── sorting.ts         # Sorting templates
+│   │   ├── pooling.ts         # Pooling templates
+│   │   ├── normalization.ts   # Normalization templates
+│   │   ├── embedding.ts       # Embedding templates
+│   │   ├── rope.ts            # RoPE templates
+│   │   ├── kvcache.ts         # KV cache templates
+│   │   ├── quantization.ts    # Quantization templates
 │   │   └── index.ts
 │   └── index.ts
 └── validation/                # Validation and diagnostics
@@ -83,7 +109,7 @@ lib/
 ### 1. Parser Enhancement (`lib/parser/`)
 
 #### CUDA Intrinsics Database (`intrinsics.ts`)
-Comprehensive database of ~100 CUDA intrinsics organized by category:
+Comprehensive database of 150+ CUDA intrinsics organized by category:
 
 | Category | Examples | Pattern Hints |
 |----------|----------|---------------|
@@ -92,8 +118,11 @@ Comprehensive database of ~100 CUDA intrinsics organized by category:
 | Warp Reduce | `__reduce_add_sync`, `__reduce_max_sync` | Reduction |
 | Atomic | `atomicAdd`, `atomicMax`, `atomicCAS` | Reduction, Histogram |
 | Sync | `__syncthreads`, `__syncwarp` | All patterns |
-| Math | `__fmaf`, `__expf`, `__rsqrtf` | Elementwise |
+| Math | `__fmaf`, `__expf`, `__rsqrtf`, `__sincosf` | Elementwise, Attention, RoPE |
 | Memory | `__ldg`, `__ldcs` | All patterns |
+| Type Conversion | `__float2half`, `__half2float`, `__float2int_rn` | Quantization |
+| Tensor Core | `wmma::load`, `wmma::store`, `wmma::mma` | GEMM, Attention |
+| Extended Math | `tanhf`, `erff`, `roundf`, `truncf` | Normalization, Activation |
 
 #### Enhanced Parser (`cuda-parser.ts`)
 Advanced parsing capabilities:
@@ -152,8 +181,9 @@ interface MemoryAnalysisResult {
 
 ### 4. Pattern Detection (`lib/patterns/`)
 
-#### Supported Patterns (7 types)
+#### Supported Patterns (18 archetypes, 60+ variants)
 
+**Core Patterns:**
 | Pattern | Description | Variants |
 |---------|-------------|----------|
 | **Elementwise** | Per-element operations | `simple`, `vectorized` |
@@ -161,8 +191,31 @@ interface MemoryAnalysisResult {
 | **Reduction** | Parallel aggregation | `tree_reduction`, `warp_shuffle`, `multi_block`, `segmented` |
 | **Scan** | Prefix sums | `inclusive_scan`, `exclusive_scan`, `segmented_scan` |
 | **Stencil** | Neighbor computations | `stencil_1d_3pt`, `stencil_1d_5pt`, `stencil_2d_5pt`, `stencil_2d_9pt`, `stencil_3d` |
-| **Histogram** | Binned counting | `histogram_atomic`, `histogram_privatized` |
-| **Sparse** | Sparse matrix ops | `spmv_csr`, `spmv_coo`, `spmv_ell` |
+| **Histogram** | Binned counting | `histogram_atomic`, `histogram_privatized`, `histogram_weighted`, `histogram_2d` |
+| **Sparse** | Sparse matrix ops | `spmv_csr`, `spmv_csr_warp`, `spmv_coo`, `spmv_ell`, `spmm_csr`, `sddmm` |
+
+**ML/DL Patterns:**
+| Pattern | Description | Variants |
+|---------|-------------|----------|
+| **Convolution** | 1D/2D/3D convolutions | `conv_1d`, `conv_2d`, `conv_3d`, `conv_depthwise`, `conv_grouped`, `conv_winograd`, `conv_im2col`, `conv_implicit_gemm` |
+| **Pooling** | Spatial pooling | `max_pool_2d`, `avg_pool_2d`, `global_avg_pool`, `global_max_pool`, `adaptive_avg_pool`, `adaptive_max_pool` |
+| **Normalization** | Normalization layers | `layernorm`, `rmsnorm`, `batchnorm`, `groupnorm`, `instancenorm` |
+| **Fused** | Fused operations | `matmul_activation`, `matmul_bias_activation`, `conv_batchnorm`, `layernorm_residual` |
+
+**LLM-Specific Patterns:**
+| Pattern | Description | Variants |
+|---------|-------------|----------|
+| **Attention** | Attention mechanisms | `flash_attention`, `flash_attention_v2`, `multi_head_attention`, `causal_attention`, `cross_attention` |
+| **RoPE** | Rotary position embedding | `rope_standard`, `rope_neox`, `rope_cached` |
+| **KV Cache** | Key-value cache ops | `kvcache_append`, `kvcache_paged`, `kvcache_prefix`, `kvcache_gqa` |
+| **Embedding** | Embedding operations | `embedding_lookup`, `embedding_bag`, `positional_embedding` |
+| **Quantization** | Quantization kernels | `quant_int8`, `quant_int4`, `quant_fp8`, `quantize`, `dequantize` |
+
+**Specialized Patterns:**
+| Pattern | Description | Variants |
+|---------|-------------|----------|
+| **FFT** | Fast Fourier Transform | `fft_radix2`, `fft_radix4`, `fft_radix8`, `inverse_fft`, `real_fft` |
+| **Sorting** | Sorting algorithms | `bitonic_sort`, `bitonic_sort_shared`, `radix_sort`, `merge_sort` |
 
 #### Evidence-Based Matching
 Each pattern matcher uses weighted evidence:
@@ -200,19 +253,32 @@ Optimizes tile configurations based on:
 ### 6. Code Generation (`lib/codegen/`)
 
 #### Variant-Specific Templates
-Templates for optimized code generation:
+Templates for optimized code generation across all 18 archetypes:
 
-**Reduction Templates:**
+**Core Templates:**
 - `generateTreeReduction()` - Shared memory tree reduction
 - `generateWarpShuffleReduction()` - Warp shuffle intrinsics
-- `generateMultiBlockReduction()` - Atomic accumulation
-- `generateSegmentedReduction()` - Per-row reduction
-
-**Stencil Templates:**
-- `generateStencil1D3Point()` - 1D 3-point stencil
 - `generateStencil2D5Point()` - 2D cross stencil
-- `generateStencil2D9Point()` - 2D box stencil
-- `generateStencil3D()` - 3D 7-point stencil
+- `generateTiledGemm()` - Tiled matrix multiplication
+
+**ML/DL Templates:**
+- `generateConv2D()` - 2D convolution with various algorithms
+- `generateMaxPool2D()` / `generateAvgPool2D()` - Pooling operations
+- `generateLayerNorm()` / `generateRMSNorm()` - Normalization layers
+- `generateFusedMatmulActivation()` - Fused operations
+
+**LLM-Specific Templates:**
+- `generateFlashAttention()` - Memory-efficient attention with online softmax
+- `generateMultiHeadAttention()` - Standard MHA
+- `generateRoPEStandard()` / `generateRoPENeoX()` - Rotary embeddings
+- `generateKVCacheAppend()` / `generateKVCachePaged()` - KV cache operations
+- `generateEmbeddingLookup()` - Embedding table lookup
+- `generateQuantInt8()` / `generateQuantInt4()` - Quantization kernels
+
+**Specialized Templates:**
+- `generateBitonicSort()` / `generateRadixSort()` - Sorting algorithms
+- `generateFFTRadix2()` / `generateFFTRadix4()` - FFT operations
+- `generateSpMVCSR()` / `generateSpMMCSR()` - Sparse operations
 
 #### Type Mapping
 CUDA to cuTile type conversion:
@@ -298,7 +364,8 @@ interface EnhancedTranspileResult {
 
 ## Pattern Detection Examples
 
-### Reduction Detection
+### Core Patterns
+
 ```cuda
 // Detected as 'reduction' with variant 'warp_shuffle'
 for (int offset = 16; offset > 0; offset /= 2) {
@@ -306,24 +373,69 @@ for (int offset = 16; offset > 0; offset /= 2) {
 }
 ```
 
-### Stencil Detection
 ```cuda
 // Detected as 'stencil' with variant 'stencil_2d_5pt'
 out[i] = 0.25f * (in[i-1] + in[i+1] + in[i-width] + in[i+width]);
 ```
 
-### Histogram Detection
+### ML/DL Patterns
+
 ```cuda
-// Detected as 'histogram' with variant 'histogram_atomic'
-int bin = data[tid] / binWidth;
-atomicAdd(&hist[bin], 1);
+// Detected as 'convolution' with variant 'conv_2d'
+for (int kh = 0; kh < kernel_h; kh++) {
+    for (int kw = 0; kw < kernel_w; kw++) {
+        sum += input[...] * weight[...];
+    }
+}
 ```
 
-### Sparse Matrix Detection
+```cuda
+// Detected as 'normalization' with variant 'layernorm'
+float mean = 0, var = 0;
+for (int i = threadIdx.x; i < D; i += blockDim.x) mean += x[row * D + i];
+// ... compute variance, normalize, scale + shift
+```
+
+### LLM-Specific Patterns
+
+```cuda
+// Detected as 'attention' with variant 'flash_attention'
+__global__ void flash_attention(float* Q, float* K, float* V, float* O, ...) {
+    extern __shared__ float smem[];
+    // Q @ K^T with online softmax, then @ V
+}
+```
+
+```cuda
+// Detected as 'rope' with variant 'rope_standard'
+float cos_val = cos_cache[pos * head_dim + d];
+float sin_val = sin_cache[pos * head_dim + d];
+out[idx] = x[idx] * cos_val - x[idx + half_dim] * sin_val;
+out[idx + half_dim] = x[idx] * sin_val + x[idx + half_dim] * cos_val;
+```
+
+```cuda
+// Detected as 'quantization' with variant 'quant_int8'
+float val = input[idx] / scale;
+val = fmaxf(-128.0f, fminf(127.0f, roundf(val)));
+output[idx] = (int8_t)val;
+```
+
+### Specialized Patterns
+
 ```cuda
 // Detected as 'sparse' with variant 'spmv_csr'
 for (int j = row_ptr[row]; j < row_ptr[row + 1]; j++) {
     sum += values[j] * x[col_idx[j]];
+}
+```
+
+```cuda
+// Detected as 'sorting' with variant 'bitonic_sort'
+for (int k = 2; k <= n; k *= 2) {
+    for (int j = k / 2; j > 0; j /= 2) {
+        // Compare and swap pairs
+    }
 }
 ```
 
@@ -351,7 +463,11 @@ Automatic tile size selection based on:
 ## Future Enhancements
 
 - [ ] Full tree-sitter CUDA parser integration
-- [ ] More pattern variants (tensor core, cooperative groups)
+- [x] More pattern variants (18 archetypes, 60+ variants)
+- [x] LLM-specific patterns (attention, RoPE, KV cache, quantization)
+- [x] ML/DL patterns (convolution, pooling, normalization)
 - [ ] Auto-tuning for tile sizes
 - [ ] Multi-kernel fusion detection
 - [ ] Performance modeling and prediction
+- [ ] Tensor core pattern optimization
+- [ ] Cooperative groups support

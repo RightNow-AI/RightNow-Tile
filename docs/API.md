@@ -24,8 +24,8 @@ Main transpilation function. Converts CUDA to cuTile Python.
 {
   tileCode: string;           // Generated cuTile Python code
   pattern: {
-    archetype: string;        // 'gemm' | 'reduction' | 'scan' | 'stencil' | 'elementwise' | 'histogram' | 'sparse'
-    variant?: string;         // Pattern variant (e.g., 'warp_shuffle')
+    archetype: string;        // See Archetypes below (18 patterns)
+    variant?: string;         // Pattern variant (e.g., 'flash_attention_v2')
     confidence: number;       // 0.0 - 1.0
     evidence: Evidence[];     // Detection evidence
     warnings: string[];
@@ -61,7 +61,7 @@ Get all pattern matches sorted by confidence.
 
 ## Pattern Types
 
-### Archetypes
+### Archetypes (18 Patterns)
 
 | Archetype | Description |
 |-----------|-------------|
@@ -69,11 +69,72 @@ Get all pattern matches sorted by confidence.
 | `gemm` | Matrix multiplication (C = A @ B) |
 | `reduction` | Aggregation (sum, max, min) |
 | `scan` | Prefix sums (inclusive/exclusive) |
-| `stencil` | Neighbor computations (convolution) |
+| `stencil` | Neighbor computations |
 | `histogram` | Binned counting |
-| `sparse` | Sparse matrix operations (SpMV) |
+| `sparse` | Sparse matrix operations (SpMV, SpMM) |
+| `attention` | Flash Attention, Multi-Head Attention |
+| `fused` | Fused kernels (matmul + activation) |
+| `fft` | Fast Fourier Transform |
+| `convolution` | 1D/2D/3D convolutions, depthwise, grouped |
+| `sorting` | Bitonic, radix, merge sort |
+| `pooling` | Max/avg pooling, global pooling |
+| `normalization` | LayerNorm, BatchNorm, RMSNorm, GroupNorm |
+| `embedding` | Embedding lookup, embedding bag |
+| `rope` | Rotary Position Embedding |
+| `kvcache` | KV cache operations for LLM inference |
+| `quantization` | INT8, INT4, FP8 quantization |
 
 ### Variants
+
+**Attention:**
+- `flash_attention` - Flash Attention algorithm
+- `flash_attention_v2` - Flash Attention v2 with better memory efficiency
+- `multi_head_attention` - Standard multi-head attention
+- `causal_attention` - Causal/decoder attention with masking
+- `cross_attention` - Cross attention (encoder-decoder)
+
+**Normalization:**
+- `layernorm` - Layer Normalization
+- `rmsnorm` - Root Mean Square Normalization
+- `batchnorm` - Batch Normalization
+- `groupnorm` - Group Normalization
+- `instancenorm` - Instance Normalization
+
+**Convolution:**
+- `conv_1d` - 1D convolution
+- `conv_2d` - 2D convolution
+- `conv_3d` - 3D convolution
+- `conv_depthwise` - Depthwise separable convolution
+- `conv_grouped` - Grouped convolution
+- `conv_winograd` - Winograd convolution
+- `conv_im2col` - im2col-based convolution
+- `conv_implicit_gemm` - Implicit GEMM convolution
+
+**Pooling:**
+- `max_pool_2d` - 2D max pooling
+- `avg_pool_2d` - 2D average pooling
+- `global_avg_pool` - Global average pooling
+- `global_max_pool` - Global max pooling
+- `adaptive_avg_pool` - Adaptive average pooling
+- `adaptive_max_pool` - Adaptive max pooling
+
+**RoPE (Rotary Position Embedding):**
+- `rope_standard` - Standard RoPE (LLaMA style)
+- `rope_neox` - NeoX-style interleaved RoPE
+- `rope_cached` - RoPE with precomputed sin/cos cache
+
+**KV Cache:**
+- `kvcache_append` - Standard KV cache append
+- `kvcache_paged` - Paged attention KV cache
+- `kvcache_prefix` - Prefix caching for shared prompts
+- `kvcache_gqa` - Grouped Query Attention cache
+
+**Quantization:**
+- `quant_int8` - INT8 symmetric/asymmetric quantization
+- `quant_int4` - INT4 group-wise quantization
+- `quant_fp8` - FP8 (E4M3/E5M2) quantization
+- `quantize` - Quantization kernel
+- `dequantize` - Dequantization kernel
 
 **Reduction:**
 - `tree_reduction` - Shared memory tree reduction
@@ -96,11 +157,42 @@ Get all pattern matches sorted by confidence.
 **Histogram:**
 - `histogram_atomic` - Direct atomic increment
 - `histogram_privatized` - Shared memory privatization
+- `histogram_multipass` - Multi-pass histogram
+- `histogram_weighted` - Weighted histogram
+- `histogram_2d` - 2D histogram
 
 **Sparse:**
-- `spmv_csr` - CSR format (row_ptr, col_idx, values)
-- `spmv_coo` - COO format (row_ind, col_ind, values)
-- `spmv_ell` - ELL format (padded fixed-width)
+- `spmv_csr` - CSR format SpMV
+- `spmv_csr_warp` - Warp-level CSR SpMV
+- `spmv_coo` - COO format SpMV
+- `spmv_ell` - ELL format SpMV
+- `spmm_csr` - CSR format SpMM
+- `sddmm` - Sampled Dense-Dense Matrix Multiply
+
+**Sorting:**
+- `bitonic_sort` - Bitonic sorting network
+- `bitonic_sort_shared` - Shared memory bitonic sort
+- `radix_sort` - Radix sort
+- `merge_sort` - Merge sort
+
+**FFT:**
+- `fft_radix2` - Radix-2 FFT
+- `fft_radix4` - Radix-4 FFT
+- `fft_radix8` - Radix-8 FFT
+- `inverse_fft` - Inverse FFT
+- `real_fft` - Real-to-complex FFT
+
+**Fused:**
+- `matmul_activation` - Matrix multiply + activation
+- `matmul_bias_activation` - Matrix multiply + bias + activation
+- `conv_batchnorm` - Convolution + batch normalization
+- `layernorm_residual` - LayerNorm + residual add
+- `multi_phase_fused` - Multi-phase fused kernel
+
+**Embedding:**
+- `embedding_lookup` - Standard embedding lookup
+- `embedding_bag` - Sum/mean of multiple embeddings
+- `positional_embedding` - Positional embedding addition
 
 ---
 
@@ -200,7 +292,8 @@ for (const diag of result.diagnostics || []) {
 |-----------|-------------|
 | `float` | `ct.float32` |
 | `double` | `ct.float64` |
-| `half` | `ct.float16` |
+| `half` / `__half` | `ct.float16` |
+| `__nv_bfloat16` | `ct.bfloat16` |
 | `int` | `ct.int32` |
 | `int8_t` | `ct.int8` |
 | `int64_t` | `ct.int64` |
@@ -211,6 +304,34 @@ for (const diag of result.diagnostics || []) {
 ---
 
 ## Examples
+
+### Flash Attention
+```cuda
+__global__ void flash_attention(
+    float* Q, float* K, float* V, float* O,
+    int seq_len, int head_dim, float scale
+) {
+    // Multi-phase attention with online softmax
+    extern __shared__ float smem[];
+    // ... Q @ K^T, softmax, @ V
+}
+```
+
+**Detected:** `attention` / `flash_attention` (confidence: 92%)
+
+### LayerNorm
+```cuda
+__global__ void layer_norm(float* x, float* y, float* gamma, float* beta,
+                           int N, int D, float eps) {
+    int row = blockIdx.x;
+    float mean = 0, var = 0;
+    for (int i = threadIdx.x; i < D; i += blockDim.x)
+        mean += x[row * D + i];
+    // ... reduction, normalize, scale + shift
+}
+```
+
+**Detected:** `normalization` / `layernorm` (confidence: 88%)
 
 ### Reduction Kernel
 ```cuda
@@ -233,20 +354,17 @@ __global__ void sum_reduce(float* input, float* output, int n) {
 
 **Detected:** `reduction` / `multi_block` (confidence: 85%)
 
-### 2D Stencil
+### 2D Convolution
 ```cuda
-__global__ void jacobi(float* in, float* out, int w, int h) {
+__global__ void conv2d(float* input, float* kernel, float* output,
+                       int H, int W, int C, int K, int kH, int kW) {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
-    int i = y * w + x;
-
-    if (x > 0 && x < w-1 && y > 0 && y < h-1) {
-        out[i] = 0.25f * (in[i-1] + in[i+1] + in[i-w] + in[i+w]);
-    }
+    // ... sliding window convolution
 }
 ```
 
-**Detected:** `stencil` / `stencil_2d_5pt` (confidence: 75%)
+**Detected:** `convolution` / `conv_2d` (confidence: 82%)
 
 ### SpMV CSR
 ```cuda
@@ -264,3 +382,18 @@ __global__ void spmv_csr(int* row_ptr, int* col_idx, float* vals,
 ```
 
 **Detected:** `sparse` / `spmv_csr` (confidence: 80%)
+
+### INT8 Quantization
+```cuda
+__global__ void quantize_int8(float* input, int8_t* output,
+                               float scale, int n) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < n) {
+        float val = input[idx] / scale;
+        val = fmaxf(-128.0f, fminf(127.0f, roundf(val)));
+        output[idx] = (int8_t)val;
+    }
+}
+```
+
+**Detected:** `quantization` / `quant_int8` (confidence: 78%)
