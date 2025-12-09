@@ -2,7 +2,15 @@
   "name": "rightnow-tile",
   "version": "2.0.0",
   "description": "CUDA to cuTile Python transpiler for NVIDIA Blackwell GPUs",
-  "keywords": ["cuda", "cutile", "nvidia", "blackwell", "gpu", "transpiler", "compiler"],
+  "keywords": [
+    "cuda",
+    "cutile",
+    "nvidia",
+    "blackwell",
+    "gpu",
+    "transpiler",
+    "compiler"
+  ],
   "author": "RightNow AI",
   "license": "MIT",
   "homepage": "https://tile.rightnowai.co",
@@ -21,6 +29,7 @@
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
+    "@vercel/analytics": "^1.6.1",
     "framer-motion": "^12.23.25",
     "lucide-react": "^0.556.0",
     "next": "16.0.8",
