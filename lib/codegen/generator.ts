@@ -1,6 +1,34 @@
 // cuTile Code Generator - Transforms IR to cuTile Python code
 
 import { KernelIR, KernelArchetype } from '../ast/types';
+import {
+  AttentionIR,
+  FusedIR,
+  FFTIR,
+  SparseIR,
+  HistogramIR,
+  ConvolutionIR,
+  SortingIR,
+  PoolingIR,
+  NormalizationIR,
+  EmbeddingIR,
+  RoPEIR,
+  KVCacheIR,
+  QuantizationIR,
+} from '../ir/builder';
+import { getAttentionGenerator } from './templates/attention';
+import { getFusedGenerator } from './templates/fused';
+import { getSparseGenerator } from './templates/sparse';
+import { getHistogramGenerator } from './templates/histogram';
+import { getConvolutionGenerator } from './templates/convolution';
+import { getSortingGenerator } from './templates/sorting';
+import { getPoolingGenerator } from './templates/pooling';
+import { getNormalizationGenerator } from './templates/normalization';
+import { getEmbeddingGenerator } from './templates/embedding';
+import { getRoPEGenerator } from './templates/rope';
+import { getKVCacheGenerator } from './templates/kvcache';
+import { getQuantizationGenerator } from './templates/quantization';
+import { EnhancedKernelIR } from '../ir/types';
 
 export class CuTileCodeGenerator {
   /**
@@ -8,6 +36,12 @@ export class CuTileCodeGenerator {
    */
   generate(ir: KernelIR): string {
     switch (ir.archetype) {
+      case 'attention':
+        return this.generateAttention(ir as unknown as AttentionIR);
+      case 'fused':
+        return this.generateFused(ir as unknown as FusedIR);
+      case 'fft':
+        return this.generateFFT(ir as unknown as FFTIR);
       case 'gemm':
         return this.generateGEMM(ir);
       case 'reduction':
@@ -16,10 +50,303 @@ export class CuTileCodeGenerator {
         return this.generateScan(ir);
       case 'stencil':
         return this.generateStencil(ir);
+      case 'sparse':
+        return this.generateSparse(ir as unknown as SparseIR);
+      case 'histogram':
+        return this.generateHistogram(ir as unknown as HistogramIR);
+      case 'convolution':
+        return this.generateConvolution(ir as unknown as ConvolutionIR);
+      case 'sorting':
+        return this.generateSorting(ir as unknown as SortingIR);
+      case 'pooling':
+        return this.generatePooling(ir as unknown as PoolingIR);
+      case 'normalization':
+        return this.generateNormalization(ir as unknown as NormalizationIR);
+      case 'embedding':
+        return this.generateEmbedding(ir as unknown as EmbeddingIR);
+      case 'rope':
+        return this.generateRoPE(ir as unknown as RoPEIR);
+      case 'kvcache':
+        return this.generateKVCache(ir as unknown as KVCacheIR);
+      case 'quantization':
+        return this.generateQuantization(ir as unknown as QuantizationIR);
       case 'elementwise':
       default:
         return this.generateElementwise(ir);
     }
+  }
+
+  /**
+   * Generate attention kernel code
+   */
+  private generateAttention(ir: AttentionIR): string {
+    const enhancedIR = this.toEnhancedIR(ir) as EnhancedKernelIR;
+    const generator = getAttentionGenerator(ir.variant as string | undefined);
+    return generator({ ...enhancedIR, attentionConfig: ir.attentionConfig } as any);
+  }
+
+  /**
+   * Generate fused kernel code
+   */
+  private generateFused(ir: FusedIR): string {
+    const enhancedIR = this.toEnhancedIR(ir) as EnhancedKernelIR;
+    const generator = getFusedGenerator(ir.variant as string | undefined);
+    return generator({ ...enhancedIR, fusedOperations: ir.fusedOperations } as any);
+  }
+
+  /**
+   * Generate sparse kernel code
+   */
+  private generateSparse(ir: SparseIR): string {
+    const enhancedIR = this.toEnhancedIR(ir) as EnhancedKernelIR;
+    const generator = getSparseGenerator(ir.variant as string | undefined);
+    return generator({ ...enhancedIR, sparseConfig: ir.sparseConfig } as any);
+  }
+
+  /**
+   * Generate histogram kernel code
+   */
+  private generateHistogram(ir: HistogramIR): string {
+    const enhancedIR = this.toEnhancedIR(ir) as EnhancedKernelIR;
+    const generator = getHistogramGenerator(ir.variant as string | undefined);
+    return generator({ ...enhancedIR, histogramConfig: ir.histogramConfig } as any);
+  }
+
+  /**
+   * Generate convolution kernel code
+   */
+  private generateConvolution(ir: ConvolutionIR): string {
+    const enhancedIR = this.toEnhancedIR(ir) as EnhancedKernelIR;
+    const generator = getConvolutionGenerator(ir.variant as string | undefined);
+    return generator({ ...enhancedIR, convConfig: ir.convConfig } as any);
+  }
+
+  /**
+   * Generate sorting kernel code
+   */
+  private generateSorting(ir: SortingIR): string {
+    const enhancedIR = this.toEnhancedIR(ir) as EnhancedKernelIR;
+    const generator = getSortingGenerator(ir.variant as string | undefined);
+    return generator({ ...enhancedIR, sortConfig: ir.sortConfig } as any);
+  }
+
+  /**
+   * Generate pooling kernel code
+   */
+  private generatePooling(ir: PoolingIR): string {
+    const enhancedIR = this.toEnhancedIR(ir) as EnhancedKernelIR;
+    const generator = getPoolingGenerator(ir.variant as string | undefined);
+    return generator({ ...enhancedIR, poolConfig: ir.poolConfig } as any);
+  }
+
+  /**
+   * Generate normalization kernel code
+   */
+  private generateNormalization(ir: NormalizationIR): string {
+    const enhancedIR = this.toEnhancedIR(ir) as EnhancedKernelIR;
+    const generator = getNormalizationGenerator(ir.variant as string | undefined);
+    return generator({ ...enhancedIR, normConfig: ir.normConfig } as any);
+  }
+
+  /**
+   * Generate embedding kernel code
+   */
+  private generateEmbedding(ir: EmbeddingIR): string {
+    const enhancedIR = this.toEnhancedIR(ir) as EnhancedKernelIR;
+    const generator = getEmbeddingGenerator(ir.variant as string | undefined);
+    return generator({ ...enhancedIR, embeddingConfig: ir.embeddingConfig } as any);
+  }
+
+  /**
+   * Generate RoPE kernel code
+   */
+  private generateRoPE(ir: RoPEIR): string {
+    const enhancedIR = this.toEnhancedIR(ir) as EnhancedKernelIR;
+    const generator = getRoPEGenerator(ir.variant as string | undefined);
+    return generator({ ...enhancedIR, ropeConfig: ir.ropeConfig } as any);
+  }
+
+  /**
+   * Generate KV cache kernel code
+   */
+  private generateKVCache(ir: KVCacheIR): string {
+    const enhancedIR = this.toEnhancedIR(ir) as EnhancedKernelIR;
+    const generator = getKVCacheGenerator(ir.variant as string | undefined);
+    return generator({ ...enhancedIR, kvConfig: ir.kvConfig } as any);
+  }
+
+  /**
+   * Generate quantization kernel code
+   */
+  private generateQuantization(ir: QuantizationIR): string {
+    const enhancedIR = this.toEnhancedIR(ir) as EnhancedKernelIR;
+    const generator = getQuantizationGenerator(ir.variant as string | undefined);
+    return generator({ ...enhancedIR, quantConfig: ir.quantConfig } as any);
+  }
+
+  /**
+   * Generate FFT kernel code
+   */
+  private generateFFT(ir: FFTIR): string {
+    const tileSize = ir.tileConfig.tileSize || 256;
+    const isInverse = ir.fftConfig?.isInverse || false;
+    const radix = ir.fftConfig?.radix || 2;
+
+    const inputName = ir.loads[0]?.source || 'data';
+    const outputName = ir.stores[0]?.target || inputName;
+
+    return `import cuda_tile as ct
+import cupy
+import math
+
+TILE_SIZE = ${tileSize}
+RADIX = ${radix}
+
+@ct.kernel
+def ${ir.name}(
+    ${inputName}, ${outputName},
+    n: ct.Constant[int],
+    tile_size: ct.Constant[int]
+):
+    """
+    ${isInverse ? 'Inverse ' : ''}FFT kernel - auto-transpiled from CUDA
+    Original: ${ir.originalName}
+    Confidence: ${Math.round(ir.confidence * 100)}%
+    Variant: fft_radix${radix}
+
+    Performs ${isInverse ? 'inverse ' : ''}Fast Fourier Transform
+    using radix-${radix} algorithm.
+    """
+    pid = ct.bid(0)
+    tid = ct.tid(0)
+
+    # Load input data
+    tile_real = ct.load(${inputName}, index=(pid * 2,), shape=(tile_size,))
+    tile_imag = ct.load(${inputName}, index=(pid * 2 + 1,), shape=(tile_size,))
+
+    # Bit-reversal permutation
+    reversed_idx = ct.bit_reverse(tid, ct.log2(tile_size))
+    if tid < reversed_idx:
+        # Swap real parts
+        temp_r = tile_real[tid]
+        tile_real[tid] = tile_real[reversed_idx]
+        tile_real[reversed_idx] = temp_r
+        # Swap imag parts
+        temp_i = tile_imag[tid]
+        tile_imag[tid] = tile_imag[reversed_idx]
+        tile_imag[reversed_idx] = temp_i
+
+    ct.sync_threads()
+
+    # FFT butterfly stages
+    stage = 1
+    while stage < tile_size:
+        # Twiddle factor angle
+        angle = ${isInverse ? '' : '-'}2.0 * math.pi * ct.float32(tid % stage) / ct.float32(stage * 2)
+        w_r = ct.cos(angle)
+        w_i = ct.sin(angle)
+
+        # Butterfly indices
+        even_idx = (tid // stage) * stage * 2 + (tid % stage)
+        odd_idx = even_idx + stage
+
+        if even_idx < tile_size and odd_idx < tile_size:
+            # Load even and odd values
+            e_r = tile_real[even_idx]
+            e_i = tile_imag[even_idx]
+            o_r = tile_real[odd_idx]
+            o_i = tile_imag[odd_idx]
+
+            # Complex multiply: (o_r + i*o_i) * (w_r + i*w_i)
+            t_r = o_r * w_r - o_i * w_i
+            t_i = o_r * w_i + o_i * w_r
+
+            # Butterfly
+            tile_real[even_idx] = e_r + t_r
+            tile_imag[even_idx] = e_i + t_i
+            tile_real[odd_idx] = e_r - t_r
+            tile_imag[odd_idx] = e_i - t_i
+
+        ct.sync_threads()
+        stage *= 2
+
+    ${isInverse ? `
+    # Scale by 1/N for inverse FFT
+    scale = 1.0 / ct.float32(tile_size)
+    tile_real[tid] = tile_real[tid] * scale
+    tile_imag[tid] = tile_imag[tid] * scale
+    ` : ''}
+
+    # Store results
+    ct.store(${outputName}, index=(pid * 2,), tile=tile_real)
+    ct.store(${outputName}, index=(pid * 2 + 1,), tile=tile_imag)
+
+
+def launch_${ir.name}(${inputName}, ${outputName}=None):
+    """Launch the ${ir.name} FFT kernel"""
+    if ${outputName} is None:
+        ${outputName} = ${inputName}  # In-place transform
+    n = ${inputName}.shape[0] // 2  # Complex pairs
+    grid = (ct.cdiv(n, TILE_SIZE), 1, 1)
+    stream = cupy.cuda.get_current_stream()
+    ct.launch(stream, grid, ${ir.name}, (${inputName}, ${outputName}, n, TILE_SIZE))`;
+  }
+
+  /**
+   * Convert basic KernelIR to EnhancedKernelIR format for templates
+   */
+  private toEnhancedIR(ir: KernelIR): Partial<EnhancedKernelIR> {
+    return {
+      name: ir.name,
+      originalName: ir.originalName,
+      archetype: ir.archetype,
+      variant: (ir as any).variant,
+      confidence: ir.confidence,
+      parameters: ir.parameters.map(p => ({
+        cudaName: p.cudaName,
+        cuTileName: p.cuTileName,
+        cudaType: p.type,
+        cuTileType: p.type.includes('float') ? 'ct.float32' : 'ct.int32',
+        isPointer: !p.isConstant,
+        isConstant: p.isConstant,
+        constantAnnotation: p.constantAnnotation,
+      })),
+      loads: ir.loads.map(l => ({
+        ...l,
+        dtype: 'ct.float32',
+        accessPattern: 'coalesced' as const,
+      })),
+      operations: ir.operations.map(op => ({
+        ...op,
+        dtype: 'ct.float32',
+      })),
+      stores: ir.stores.map(s => ({
+        ...s,
+        accessPattern: 'coalesced' as const,
+      })),
+      tileConfig: ir.tileConfig,
+      tileStrategy: {
+        approach: 'blocked' as const,
+        dimensions: [],
+        justification: 'Default tiling strategy',
+      },
+      semanticInfo: {
+        dataTypes: new Map(),
+        inputArrays: ir.loads.map(l => l.source),
+        outputArrays: ir.stores.map(s => s.target),
+        intermediates: [],
+        hasDataDependency: false,
+        isThreadSafe: true,
+      },
+      optimizationHints: [],
+      memoryLayout: {
+        totalSharedMemory: 0,
+        registersPerThread: 32,
+        globalMemoryReads: ir.loads.length,
+        globalMemoryWrites: ir.stores.length,
+        sharedMemoryBankConflictFree: true,
+      },
+    };
   }
 
   private generateElementwise(ir: KernelIR): string {

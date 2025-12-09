@@ -29,6 +29,7 @@ export interface MemoryAccess {
 }
 
 export interface LoopInfo {
+  loopType: 'for' | 'while' | 'do-while';
   initVar: string;
   condition: string;
   update: string;
@@ -59,17 +60,64 @@ export interface ThreadIndexUsage {
 }
 
 // Pattern Detection Types
-export type KernelArchetype = 'gemm' | 'reduction' | 'scan' | 'stencil' | 'elementwise' | 'histogram' | 'sparse';
+export type KernelArchetype =
+  | 'attention'       // Flash Attention, Multi-Head Attention
+  | 'fused'           // Fused kernels (e.g., matmul + activation)
+  | 'fft'             // Fast Fourier Transform
+  | 'gemm'            // Matrix multiplication
+  | 'reduction'       // Sum, max, min reductions
+  | 'scan'            // Prefix sum/scan
+  | 'stencil'         // Stencil computations
+  | 'elementwise'     // Element-wise operations
+  | 'histogram'       // Histogram computation
+  | 'sparse'          // Sparse matrix operations
+  | 'convolution'     // Convolution operations
+  | 'sorting'         // Sorting algorithms
+  | 'pooling'         // Pooling operations
+  | 'normalization'   // Normalization layers
+  | 'embedding'       // Embedding lookups
+  | 'rope'            // Rotary Position Embedding
+  | 'kvcache'         // KV Cache operations
+  | 'quantization';   // Quantization/dequantization
 
 // Pattern variant for more specific classification
 export type PatternVariant =
-  | 'tree_reduction' | 'warp_shuffle' | 'multi_block' | 'segmented' // reduction variants
-  | 'naive_gemm' | 'tiled_gemm' | 'register_blocked' // GEMM variants
-  | 'inclusive_scan' | 'exclusive_scan' | 'segmented_scan' // scan variants
-  | 'stencil_1d_3pt' | 'stencil_1d_5pt' | 'stencil_2d_5pt' | 'stencil_2d_9pt' | 'stencil_3d' // stencil variants
-  | 'histogram_atomic' | 'histogram_privatized' // histogram variants
-  | 'spmv_csr' | 'spmv_coo' | 'spmv_ell' // sparse variants
-  | 'vectorized' | 'simple'; // elementwise variants
+  // Attention variants
+  | 'flash_attention' | 'flash_attention_v2' | 'multi_head_attention' | 'causal_attention' | 'cross_attention'
+  // Fused kernel variants
+  | 'matmul_activation' | 'matmul_bias_activation' | 'conv_batchnorm' | 'layernorm_residual' | 'multi_phase_fused'
+  // FFT variants
+  | 'fft_radix2' | 'fft_radix4' | 'fft_radix8' | 'inverse_fft' | 'real_fft'
+  // Reduction variants
+  | 'tree_reduction' | 'warp_shuffle' | 'multi_block' | 'segmented'
+  // GEMM variants
+  | 'naive_gemm' | 'tiled_gemm' | 'register_blocked'
+  // Scan variants
+  | 'inclusive_scan' | 'exclusive_scan' | 'segmented_scan'
+  // Stencil variants
+  | 'stencil_1d_3pt' | 'stencil_1d_5pt' | 'stencil_2d_5pt' | 'stencil_2d_9pt' | 'stencil_3d'
+  // Histogram variants
+  | 'histogram_atomic' | 'histogram_privatized' | 'histogram_multipass' | 'histogram_weighted' | 'histogram_2d'
+  // Sparse variants
+  | 'spmv_csr' | 'spmv_csr_warp' | 'spmv_coo' | 'spmv_ell' | 'spmm_csr' | 'sddmm'
+  // Elementwise variants
+  | 'vectorized' | 'simple'
+  // Convolution variants
+  | 'conv_1d' | 'conv_2d' | 'conv_3d' | 'conv_depthwise' | 'conv_grouped' | 'conv_winograd' | 'conv_im2col' | 'conv_implicit_gemm'
+  // Sorting variants
+  | 'bitonic_sort' | 'bitonic_sort_shared' | 'radix_sort' | 'merge_sort'
+  // Pooling variants
+  | 'max_pool_2d' | 'avg_pool_2d' | 'global_avg_pool' | 'global_max_pool' | 'adaptive_avg_pool' | 'adaptive_max_pool'
+  // Normalization variants
+  | 'layernorm' | 'rmsnorm' | 'batchnorm' | 'groupnorm' | 'instancenorm'
+  // Embedding variants
+  | 'embedding_lookup' | 'embedding_bag' | 'positional_embedding'
+  // RoPE variants
+  | 'rope_standard' | 'rope_neox' | 'rope_cached'
+  // KV Cache variants
+  | 'kvcache_append' | 'kvcache_paged' | 'kvcache_prefix' | 'kvcache_gqa'
+  // Quantization variants
+  | 'quant_int8' | 'quant_int4' | 'quant_fp8' | 'quantize' | 'dequantize';
 
 export interface PatternMatch {
   archetype: KernelArchetype;

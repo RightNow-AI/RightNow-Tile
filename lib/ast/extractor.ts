@@ -160,6 +160,9 @@ export class ASTExtractor {
       const line = lines[lineNum];
       let match;
 
+      // Reset regex for each line
+      accessRegex.lastIndex = 0;
+
       while ((match = accessRegex.exec(line)) !== null) {
         const array = match[1];
         const indexExpr = match[2];
@@ -169,16 +172,29 @@ export class ASTExtractor {
           continue;
         }
 
-        // Determine if read or write
-        // An array access is a WRITE only if:
-        // 1. It's directly followed by an assignment operator (=, +=, -=, *=)
-        // 2. It's NOT on the right-hand side of an assignment
+        // Skip local array declarations (e.g., float arr[16])
+        const beforeMatch = line.substring(0, match.index);
+        if (/(?:float|double|int|half|__half|char|short|long|unsigned)\s*$/.test(beforeMatch.trim())) {
+          continue;
+        }
+
+        // Determine if read or write with comprehensive detection
         const afterAccess = line.substring(match.index + match[0].length);
-        const isWrite = /^\s*=(?!=)/.test(afterAccess) ||  // = but not ==
-                       /^\s*\+=/.test(afterAccess) ||
-                       /^\s*-=/.test(afterAccess) ||
-                       /^\s*\*=/.test(afterAccess) ||
-                       /^\s*\/=/.test(afterAccess);
+        const beforeAccess = line.substring(0, match.index);
+
+        // Check for write operations
+        const isDirectAssignment = /^\s*=(?!=)/.test(afterAccess);      // arr[i] = ...
+        const isCompoundAssign = /^\s*(\+=|-=|\*=|\/=|%=|&=|\|=|\^=|<<=|>>=)/.test(afterAccess);
+        const isPostfixIncDec = /^\s*(\+\+|--)/.test(afterAccess);       // arr[i]++ or arr[i]--
+        const isPrefixIncDec = /(\+\+|--)\s*$/.test(beforeAccess);       // ++arr[i] or --arr[i]
+
+        // Check for atomic operations (both read and write)
+        const isAtomicOp = /atomic\w+\s*\([^,]*,\s*$/.test(beforeAccess); // First arg to atomic
+
+        const isWrite = isDirectAssignment || isCompoundAssign || isPostfixIncDec || isPrefixIncDec;
+
+        // For compound assignments (+=, etc.) and inc/dec, it's BOTH read and write
+        const isReadWrite = isCompoundAssign || isPostfixIncDec || isPrefixIncDec || isAtomicOp;
 
         // Extract variables used in index
         const indexVars = this.extractVariables(indexExpr);
@@ -191,15 +207,39 @@ export class ASTExtractor {
         const offsetMatch = indexExpr.match(/[-+]\s*(\d+)\s*$/);
         const offset = offsetMatch ? parseInt(offsetMatch[1]) : undefined;
 
-        accesses.push({
-          array,
-          indexExpression: indexExpr,
-          indexVars,
-          accessType: isWrite ? 'write' : 'read',
-          hasNeighborOffset,
-          offset,
-          line: lineNum + 1,
-        });
+        // For read-write operations, add both a read and a write access
+        if (isReadWrite) {
+          // Add read first (happens before the write)
+          accesses.push({
+            array,
+            indexExpression: indexExpr,
+            indexVars,
+            accessType: 'read',
+            hasNeighborOffset,
+            offset,
+            line: lineNum + 1,
+          });
+          // Add write
+          accesses.push({
+            array,
+            indexExpression: indexExpr,
+            indexVars,
+            accessType: 'write',
+            hasNeighborOffset,
+            offset,
+            line: lineNum + 1,
+          });
+        } else {
+          accesses.push({
+            array,
+            indexExpression: indexExpr,
+            indexVars,
+            accessType: isWrite ? 'write' : 'read',
+            hasNeighborOffset,
+            offset,
+            line: lineNum + 1,
+          });
+        }
       }
     }
 
@@ -236,12 +276,30 @@ export class ASTExtractor {
 
   private extractLoops(body: string): LoopInfo[] {
     const loops: LoopInfo[] = [];
-    const lines = body.split('\n');
+    let nestLevel = 0;
 
-    // Find for loops
+    // Extract for loops
+    const forLoops = this.extractForLoops(body, nestLevel);
+    loops.push(...forLoops);
+    nestLevel += forLoops.length;
+
+    // Extract while loops
+    const whileLoops = this.extractWhileLoops(body, nestLevel);
+    loops.push(...whileLoops);
+    nestLevel += whileLoops.length;
+
+    // Extract do-while loops
+    const doWhileLoops = this.extractDoWhileLoops(body, nestLevel);
+    loops.push(...doWhileLoops);
+
+    return loops;
+  }
+
+  private extractForLoops(body: string, startNestLevel: number): LoopInfo[] {
+    const loops: LoopInfo[] = [];
     const forRegex = /for\s*\(\s*([^;]*);([^;]*);([^)]*)\)\s*\{?/g;
     let match;
-    let nestLevel = 0;
+    let nestLevel = startNestLevel;
 
     while ((match = forRegex.exec(body)) !== null) {
       const init = match[1].trim();
@@ -274,6 +332,7 @@ export class ASTExtractor {
       const startLine = beforeLoop.split('\n').length;
 
       loops.push({
+        loopType: 'for',
         initVar,
         condition,
         update,
@@ -288,6 +347,107 @@ export class ASTExtractor {
     }
 
     return loops;
+  }
+
+  private extractWhileLoops(body: string, startNestLevel: number): LoopInfo[] {
+    const loops: LoopInfo[] = [];
+    // Match while (condition) { - but not do-while
+    const whileRegex = /(?<!do\s*)while\s*\(([^)]+)\)\s*\{/g;
+    let match;
+    let nestLevel = startNestLevel;
+
+    while ((match = whileRegex.exec(body)) !== null) {
+      const condition = match[1].trim();
+
+      // Find loop body
+      const loopStart = match.index + match[0].length;
+      const loopBody = this.extractFunctionBody(body, loopStart);
+
+      // Analyze condition for potential loop variable
+      const initVar = this.extractConditionVariable(condition);
+
+      // Check for stride patterns in loop body
+      const hasStrideHalving = />>=\s*1/.test(loopBody) ||
+                               /\/=\s*2/.test(loopBody);
+
+      const hasStrideDoubling = /<<=\s*1/.test(loopBody) ||
+                                /\*=\s*2/.test(loopBody);
+
+      const containsSyncthreads = loopBody.includes('__syncthreads');
+
+      const beforeLoop = body.substring(0, match.index);
+      const startLine = beforeLoop.split('\n').length;
+
+      loops.push({
+        loopType: 'while',
+        initVar,
+        condition,
+        update: '', // while loops don't have explicit update
+        body: loopBody,
+        nestLevel: nestLevel++,
+        containsSyncthreads,
+        hasStrideHalving,
+        hasStrideDoubling,
+        startLine,
+        endLine: startLine + loopBody.split('\n').length,
+      });
+    }
+
+    return loops;
+  }
+
+  private extractDoWhileLoops(body: string, startNestLevel: number): LoopInfo[] {
+    const loops: LoopInfo[] = [];
+    // Match do { ... } while (condition);
+    const doWhileRegex = /do\s*\{/g;
+    let match;
+    let nestLevel = startNestLevel;
+
+    while ((match = doWhileRegex.exec(body)) !== null) {
+      // Find loop body
+      const loopStart = match.index + match[0].length;
+      const loopBody = this.extractFunctionBody(body, loopStart);
+
+      // Find the while condition after the body
+      const afterBody = body.substring(loopStart + loopBody.length);
+      const conditionMatch = afterBody.match(/\}\s*while\s*\(([^)]+)\)/);
+      const condition = conditionMatch ? conditionMatch[1].trim() : '';
+
+      const initVar = this.extractConditionVariable(condition);
+
+      const hasStrideHalving = />>=\s*1/.test(loopBody) ||
+                               /\/=\s*2/.test(loopBody);
+
+      const hasStrideDoubling = /<<=\s*1/.test(loopBody) ||
+                                /\*=\s*2/.test(loopBody);
+
+      const containsSyncthreads = loopBody.includes('__syncthreads');
+
+      const beforeLoop = body.substring(0, match.index);
+      const startLine = beforeLoop.split('\n').length;
+
+      loops.push({
+        loopType: 'do-while',
+        initVar,
+        condition,
+        update: '',
+        body: loopBody,
+        nestLevel: nestLevel++,
+        containsSyncthreads,
+        hasStrideHalving,
+        hasStrideDoubling,
+        startLine,
+        endLine: startLine + loopBody.split('\n').length,
+      });
+    }
+
+    return loops;
+  }
+
+  private extractConditionVariable(condition: string): string {
+    // Extract the main variable from conditions like "i < n", "stride > 0", etc.
+    const match = condition.match(/(\w+)\s*[<>=!]/);
+    return match ? match[1] : '';
   }
 
   private extractLoopVariable(init: string): string {

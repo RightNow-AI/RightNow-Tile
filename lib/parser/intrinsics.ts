@@ -24,13 +24,24 @@ export type IntrinsicCategory =
   | 'bit_manipulation';
 
 export type PatternHint =
+  | 'attention'
+  | 'fft'
+  | 'fused'
   | 'reduction'
   | 'scan'
   | 'histogram'
   | 'gemm'
   | 'stencil'
   | 'elementwise'
-  | 'sparse';
+  | 'sparse'
+  | 'convolution'
+  | 'sorting'
+  | 'pooling'
+  | 'normalization'
+  | 'embedding'
+  | 'rope'
+  | 'kvcache'
+  | 'quantization';
 
 // Warp Shuffle Intrinsics - Strong indicators of reduction/scan
 export const WARP_SHUFFLE_INTRINSICS: Record<string, IntrinsicInfo> = {
@@ -351,10 +362,11 @@ export const SYNC_INTRINSICS: Record<string, IntrinsicInfo> = {
 
 // Math Intrinsics
 export const MATH_INTRINSICS: Record<string, IntrinsicInfo> = {
+  // Fused multiply-add (critical for GEMM and attention)
   '__fmaf': {
     name: '__fmaf',
     category: 'math',
-    patternHints: ['gemm'],
+    patternHints: ['gemm', 'attention'],
     description: 'Fused multiply-add (single precision)',
     returnType: 'float',
     hasSideEffects: false,
@@ -362,27 +374,105 @@ export const MATH_INTRINSICS: Record<string, IntrinsicInfo> = {
   '__fma': {
     name: '__fma',
     category: 'math',
-    patternHints: ['gemm'],
+    patternHints: ['gemm', 'attention'],
     description: 'Fused multiply-add (double precision)',
     returnType: 'double',
     hasSideEffects: false,
   },
-  '__expf': {
-    name: '__expf',
+  'fmaf': {
+    name: 'fmaf',
     category: 'math',
-    patternHints: ['elementwise'],
-    description: 'Fast exponential',
+    patternHints: ['gemm', 'attention'],
+    description: 'Fused multiply-add (standard)',
     returnType: 'float',
     hasSideEffects: false,
   },
+  'fma': {
+    name: 'fma',
+    category: 'math',
+    patternHints: ['gemm', 'attention'],
+    description: 'Fused multiply-add (double, standard)',
+    returnType: 'double',
+    hasSideEffects: false,
+  },
+
+  // Exponential functions (critical for softmax in attention)
+  '__expf': {
+    name: '__expf',
+    category: 'math',
+    patternHints: ['attention', 'elementwise'],
+    description: 'Fast exponential (single precision)',
+    returnType: 'float',
+    hasSideEffects: false,
+  },
+  '__exp': {
+    name: '__exp',
+    category: 'math',
+    patternHints: ['attention', 'elementwise'],
+    description: 'Fast exponential (double precision)',
+    returnType: 'double',
+    hasSideEffects: false,
+  },
+  'expf': {
+    name: 'expf',
+    category: 'math',
+    patternHints: ['attention', 'elementwise'],
+    description: 'Standard exponential (single precision)',
+    returnType: 'float',
+    hasSideEffects: false,
+  },
+  'exp': {
+    name: 'exp',
+    category: 'math',
+    patternHints: ['attention', 'elementwise'],
+    description: 'Standard exponential (double precision)',
+    returnType: 'double',
+    hasSideEffects: false,
+  },
+  '__exp2f': {
+    name: '__exp2f',
+    category: 'math',
+    patternHints: ['elementwise'],
+    description: 'Fast base-2 exponential',
+    returnType: 'float',
+    hasSideEffects: false,
+  },
+  '__exp10f': {
+    name: '__exp10f',
+    category: 'math',
+    patternHints: ['elementwise'],
+    description: 'Fast base-10 exponential',
+    returnType: 'float',
+    hasSideEffects: false,
+  },
+
+  // Logarithm functions
   '__logf': {
     name: '__logf',
     category: 'math',
     patternHints: ['elementwise'],
-    description: 'Fast logarithm',
+    description: 'Fast natural logarithm',
     returnType: 'float',
     hasSideEffects: false,
   },
+  '__log2f': {
+    name: '__log2f',
+    category: 'math',
+    patternHints: ['elementwise'],
+    description: 'Fast base-2 logarithm',
+    returnType: 'float',
+    hasSideEffects: false,
+  },
+  '__log10f': {
+    name: '__log10f',
+    category: 'math',
+    patternHints: ['elementwise'],
+    description: 'Fast base-10 logarithm',
+    returnType: 'float',
+    hasSideEffects: false,
+  },
+
+  // Power and root functions
   '__powf': {
     name: '__powf',
     category: 'math',
@@ -394,8 +484,16 @@ export const MATH_INTRINSICS: Record<string, IntrinsicInfo> = {
   '__rsqrtf': {
     name: '__rsqrtf',
     category: 'math',
-    patternHints: ['elementwise'],
+    patternHints: ['attention', 'elementwise'],
     description: 'Fast reciprocal square root',
+    returnType: 'float',
+    hasSideEffects: false,
+  },
+  'rsqrtf': {
+    name: 'rsqrtf',
+    category: 'math',
+    patternHints: ['attention', 'elementwise'],
+    description: 'Reciprocal square root',
     returnType: 'float',
     hasSideEffects: false,
   },
@@ -407,10 +505,12 @@ export const MATH_INTRINSICS: Record<string, IntrinsicInfo> = {
     returnType: 'float',
     hasSideEffects: false,
   },
+
+  // Trigonometric functions (critical for FFT)
   '__sinf': {
     name: '__sinf',
     category: 'math',
-    patternHints: ['elementwise'],
+    patternHints: ['fft', 'elementwise'],
     description: 'Fast sine',
     returnType: 'float',
     hasSideEffects: false,
@@ -418,9 +518,25 @@ export const MATH_INTRINSICS: Record<string, IntrinsicInfo> = {
   '__cosf': {
     name: '__cosf',
     category: 'math',
-    patternHints: ['elementwise'],
+    patternHints: ['fft', 'elementwise'],
     description: 'Fast cosine',
     returnType: 'float',
+    hasSideEffects: false,
+  },
+  '__sincosf': {
+    name: '__sincosf',
+    category: 'math',
+    patternHints: ['fft'],
+    description: 'Fast simultaneous sine and cosine',
+    returnType: 'void',
+    hasSideEffects: false,
+  },
+  'sincosf': {
+    name: 'sincosf',
+    category: 'math',
+    patternHints: ['fft'],
+    description: 'Simultaneous sine and cosine',
+    returnType: 'void',
     hasSideEffects: false,
   },
   '__tanf': {
@@ -431,20 +547,84 @@ export const MATH_INTRINSICS: Record<string, IntrinsicInfo> = {
     returnType: 'float',
     hasSideEffects: false,
   },
-  'fmaf': {
-    name: 'fmaf',
+
+  // Min/Max functions (critical for attention softmax)
+  'fmaxf': {
+    name: 'fmaxf',
     category: 'math',
-    patternHints: ['gemm'],
-    description: 'Fused multiply-add (standard)',
+    patternHints: ['attention', 'reduction'],
+    description: 'Maximum of two floats',
     returnType: 'float',
     hasSideEffects: false,
   },
-  'fma': {
-    name: 'fma',
+  'fminf': {
+    name: 'fminf',
     category: 'math',
-    patternHints: ['gemm'],
-    description: 'Fused multiply-add (double, standard)',
-    returnType: 'double',
+    patternHints: ['attention', 'reduction'],
+    description: 'Minimum of two floats',
+    returnType: 'float',
+    hasSideEffects: false,
+  },
+  '__fmaxf': {
+    name: '__fmaxf',
+    category: 'math',
+    patternHints: ['attention', 'reduction'],
+    description: 'Fast maximum of two floats',
+    returnType: 'float',
+    hasSideEffects: false,
+  },
+  '__fminf': {
+    name: '__fminf',
+    category: 'math',
+    patternHints: ['attention', 'reduction'],
+    description: 'Fast minimum of two floats',
+    returnType: 'float',
+    hasSideEffects: false,
+  },
+
+  // Rounding functions
+  '__float2int_rn': {
+    name: '__float2int_rn',
+    category: 'math',
+    patternHints: ['elementwise'],
+    description: 'Convert float to int (round to nearest)',
+    returnType: 'int',
+    hasSideEffects: false,
+  },
+  '__int2float_rn': {
+    name: '__int2float_rn',
+    category: 'math',
+    patternHints: ['elementwise'],
+    description: 'Convert int to float (round to nearest)',
+    returnType: 'float',
+    hasSideEffects: false,
+  },
+
+  // Saturating arithmetic (for attention scaling)
+  '__saturatef': {
+    name: '__saturatef',
+    category: 'math',
+    patternHints: ['attention', 'elementwise'],
+    description: 'Saturate to [0, 1]',
+    returnType: 'float',
+    hasSideEffects: false,
+  },
+
+  // Division and modulo
+  '__fdividef': {
+    name: '__fdividef',
+    category: 'math',
+    patternHints: ['attention', 'elementwise'],
+    description: 'Fast division',
+    returnType: 'float',
+    hasSideEffects: false,
+  },
+  '__frcp_rn': {
+    name: '__frcp_rn',
+    category: 'math',
+    patternHints: ['attention', 'elementwise'],
+    description: 'Fast reciprocal (round to nearest)',
+    returnType: 'float',
     hasSideEffects: false,
   },
 };
@@ -522,7 +702,7 @@ export const BIT_INTRINSICS: Record<string, IntrinsicInfo> = {
   '__clz': {
     name: '__clz',
     category: 'bit_manipulation',
-    patternHints: [],
+    patternHints: ['fft'],
     description: 'Count leading zeros',
     returnType: 'int',
     hasSideEffects: false,
@@ -530,7 +710,7 @@ export const BIT_INTRINSICS: Record<string, IntrinsicInfo> = {
   '__clzll': {
     name: '__clzll',
     category: 'bit_manipulation',
-    patternHints: [],
+    patternHints: ['fft'],
     description: 'Count leading zeros (64-bit)',
     returnType: 'int',
     hasSideEffects: false,
@@ -551,21 +731,329 @@ export const BIT_INTRINSICS: Record<string, IntrinsicInfo> = {
     returnType: 'int',
     hasSideEffects: false,
   },
+  // Bit reversal - critical for FFT
   '__brev': {
     name: '__brev',
     category: 'bit_manipulation',
-    patternHints: ['scan'],
-    description: 'Bit reverse',
+    patternHints: ['fft', 'scan'],
+    description: 'Bit reverse (32-bit)',
     returnType: 'unsigned int',
     hasSideEffects: false,
   },
   '__brevll': {
     name: '__brevll',
     category: 'bit_manipulation',
-    patternHints: ['scan'],
+    patternHints: ['fft', 'scan'],
     description: 'Bit reverse (64-bit)',
     returnType: 'unsigned long long',
     hasSideEffects: false,
+  },
+  // Byte permutation
+  '__byte_perm': {
+    name: '__byte_perm',
+    category: 'bit_manipulation',
+    patternHints: ['fft'],
+    description: 'Byte permutation',
+    returnType: 'unsigned int',
+    hasSideEffects: false,
+  },
+  // Funnel shift (for bit rotation)
+  '__funnelshift_l': {
+    name: '__funnelshift_l',
+    category: 'bit_manipulation',
+    patternHints: [],
+    description: 'Funnel shift left (32-bit)',
+    returnType: 'unsigned int',
+    hasSideEffects: false,
+  },
+  '__funnelshift_lc': {
+    name: '__funnelshift_lc',
+    category: 'bit_manipulation',
+    patternHints: [],
+    description: 'Funnel shift left (clamped)',
+    returnType: 'unsigned int',
+    hasSideEffects: false,
+  },
+  '__funnelshift_r': {
+    name: '__funnelshift_r',
+    category: 'bit_manipulation',
+    patternHints: [],
+    description: 'Funnel shift right (32-bit)',
+    returnType: 'unsigned int',
+    hasSideEffects: false,
+  },
+  '__funnelshift_rc': {
+    name: '__funnelshift_rc',
+    category: 'bit_manipulation',
+    patternHints: [],
+    description: 'Funnel shift right (clamped)',
+    returnType: 'unsigned int',
+    hasSideEffects: false,
+  },
+};
+
+// Type Conversion Intrinsics (critical for quantization)
+export const TYPE_CONVERSION_INTRINSICS: Record<string, IntrinsicInfo> = {
+  // Float to int conversions (quantization)
+  '__float2int_rz': {
+    name: '__float2int_rz',
+    category: 'type_conversion',
+    patternHints: ['quantization'],
+    description: 'Convert float to int (round toward zero)',
+    returnType: 'int',
+    hasSideEffects: false,
+  },
+  '__float2int_ru': {
+    name: '__float2int_ru',
+    category: 'type_conversion',
+    patternHints: ['quantization'],
+    description: 'Convert float to int (round up)',
+    returnType: 'int',
+    hasSideEffects: false,
+  },
+  '__float2int_rd': {
+    name: '__float2int_rd',
+    category: 'type_conversion',
+    patternHints: ['quantization'],
+    description: 'Convert float to int (round down)',
+    returnType: 'int',
+    hasSideEffects: false,
+  },
+  // Float to unsigned conversions
+  '__float2uint_rn': {
+    name: '__float2uint_rn',
+    category: 'type_conversion',
+    patternHints: ['quantization', 'histogram'],
+    description: 'Convert float to unsigned int (round to nearest)',
+    returnType: 'unsigned int',
+    hasSideEffects: false,
+  },
+  // Half precision conversions (for mixed precision/quantization)
+  '__float2half': {
+    name: '__float2half',
+    category: 'type_conversion',
+    patternHints: ['quantization', 'attention'],
+    description: 'Convert float to half precision',
+    returnType: '__half',
+    hasSideEffects: false,
+  },
+  '__half2float': {
+    name: '__half2float',
+    category: 'type_conversion',
+    patternHints: ['quantization', 'attention'],
+    description: 'Convert half precision to float',
+    returnType: 'float',
+    hasSideEffects: false,
+  },
+  '__float2half_rn': {
+    name: '__float2half_rn',
+    category: 'type_conversion',
+    patternHints: ['quantization'],
+    description: 'Convert float to half (round to nearest)',
+    returnType: '__half',
+    hasSideEffects: false,
+  },
+  // BFloat16 conversions
+  '__float2bfloat16': {
+    name: '__float2bfloat16',
+    category: 'type_conversion',
+    patternHints: ['quantization', 'attention'],
+    description: 'Convert float to bfloat16',
+    returnType: '__nv_bfloat16',
+    hasSideEffects: false,
+  },
+  '__bfloat162float': {
+    name: '__bfloat162float',
+    category: 'type_conversion',
+    patternHints: ['quantization', 'attention'],
+    description: 'Convert bfloat16 to float',
+    returnType: 'float',
+    hasSideEffects: false,
+  },
+  // Packed half operations
+  '__floats2half2_rn': {
+    name: '__floats2half2_rn',
+    category: 'type_conversion',
+    patternHints: ['quantization'],
+    description: 'Convert two floats to packed half2',
+    returnType: '__half2',
+    hasSideEffects: false,
+  },
+  '__half22float2': {
+    name: '__half22float2',
+    category: 'type_conversion',
+    patternHints: ['quantization'],
+    description: 'Convert packed half2 to float2',
+    returnType: 'float2',
+    hasSideEffects: false,
+  },
+};
+
+// Additional Math Intrinsics for new patterns
+export const EXTENDED_MATH_INTRINSICS: Record<string, IntrinsicInfo> = {
+  // Hyperbolic functions (for GELU, tanh activations in fused kernels)
+  '__tanhf': {
+    name: '__tanhf',
+    category: 'math',
+    patternHints: ['fused', 'normalization'],
+    description: 'Fast hyperbolic tangent',
+    returnType: 'float',
+    hasSideEffects: false,
+  },
+  'tanhf': {
+    name: 'tanhf',
+    category: 'math',
+    patternHints: ['fused', 'normalization'],
+    description: 'Hyperbolic tangent',
+    returnType: 'float',
+    hasSideEffects: false,
+  },
+  // Error function (for GELU activation)
+  '__erff': {
+    name: '__erff',
+    category: 'math',
+    patternHints: ['fused'],
+    description: 'Fast error function',
+    returnType: 'float',
+    hasSideEffects: false,
+  },
+  'erff': {
+    name: 'erff',
+    category: 'math',
+    patternHints: ['fused'],
+    description: 'Error function',
+    returnType: 'float',
+    hasSideEffects: false,
+  },
+  // Rounding for quantization
+  'roundf': {
+    name: 'roundf',
+    category: 'math',
+    patternHints: ['quantization'],
+    description: 'Round to nearest integer',
+    returnType: 'float',
+    hasSideEffects: false,
+  },
+  'truncf': {
+    name: 'truncf',
+    category: 'math',
+    patternHints: ['quantization'],
+    description: 'Truncate to integer',
+    returnType: 'float',
+    hasSideEffects: false,
+  },
+  'floorf': {
+    name: 'floorf',
+    category: 'math',
+    patternHints: ['pooling', 'convolution'],
+    description: 'Floor function',
+    returnType: 'float',
+    hasSideEffects: false,
+  },
+  'ceilf': {
+    name: 'ceilf',
+    category: 'math',
+    patternHints: ['pooling', 'convolution'],
+    description: 'Ceiling function',
+    returnType: 'float',
+    hasSideEffects: false,
+  },
+  // Absolute value (for normalization, pooling)
+  'fabsf': {
+    name: 'fabsf',
+    category: 'math',
+    patternHints: ['normalization', 'elementwise'],
+    description: 'Absolute value (float)',
+    returnType: 'float',
+    hasSideEffects: false,
+  },
+  '__fabsf': {
+    name: '__fabsf',
+    category: 'math',
+    patternHints: ['normalization', 'elementwise'],
+    description: 'Fast absolute value',
+    returnType: 'float',
+    hasSideEffects: false,
+  },
+  // Remainder/modulo (for RoPE position calculations)
+  'fmodf': {
+    name: 'fmodf',
+    category: 'math',
+    patternHints: ['rope', 'elementwise'],
+    description: 'Floating-point remainder',
+    returnType: 'float',
+    hasSideEffects: false,
+  },
+  // Atan2 (for rotary embeddings angle calculations)
+  'atan2f': {
+    name: 'atan2f',
+    category: 'math',
+    patternHints: ['rope', 'elementwise'],
+    description: 'Two-argument arctangent',
+    returnType: 'float',
+    hasSideEffects: false,
+  },
+  // Copysign (for sorting comparisons, quantization)
+  'copysignf': {
+    name: 'copysignf',
+    category: 'math',
+    patternHints: ['sorting', 'quantization'],
+    description: 'Copy sign of a number',
+    returnType: 'float',
+    hasSideEffects: false,
+  },
+};
+
+// Tensor Core / Matrix Intrinsics (critical for GEMM, attention)
+export const TENSOR_INTRINSICS: Record<string, IntrinsicInfo> = {
+  'wmma::load_matrix_sync': {
+    name: 'wmma::load_matrix_sync',
+    category: 'memory',
+    patternHints: ['gemm', 'attention', 'convolution'],
+    description: 'Load matrix fragment for tensor core',
+    returnType: 'void',
+    hasSideEffects: true,
+  },
+  'wmma::store_matrix_sync': {
+    name: 'wmma::store_matrix_sync',
+    category: 'memory',
+    patternHints: ['gemm', 'attention', 'convolution'],
+    description: 'Store matrix fragment from tensor core',
+    returnType: 'void',
+    hasSideEffects: true,
+  },
+  'wmma::mma_sync': {
+    name: 'wmma::mma_sync',
+    category: 'math',
+    patternHints: ['gemm', 'attention', 'convolution'],
+    description: 'Tensor core matrix multiply-accumulate',
+    returnType: 'void',
+    hasSideEffects: true,
+  },
+  'wmma::fill_fragment': {
+    name: 'wmma::fill_fragment',
+    category: 'memory',
+    patternHints: ['gemm', 'attention'],
+    description: 'Fill matrix fragment with value',
+    returnType: 'void',
+    hasSideEffects: true,
+  },
+  // MMA PTX intrinsics (for more fine-grained control)
+  '__mma_m16n8k16_row_col_f16': {
+    name: '__mma_m16n8k16_row_col_f16',
+    category: 'math',
+    patternHints: ['gemm', 'attention'],
+    description: 'MMA 16x8x16 half precision',
+    returnType: 'void',
+    hasSideEffects: true,
+  },
+  '__mma_m16n8k8_row_col_tf32': {
+    name: '__mma_m16n8k8_row_col_tf32',
+    category: 'math',
+    patternHints: ['gemm', 'attention'],
+    description: 'MMA 16x8x8 TensorFloat-32',
+    returnType: 'void',
+    hasSideEffects: true,
   },
 };
 
@@ -579,6 +1067,9 @@ export const ALL_INTRINSICS: Record<string, IntrinsicInfo> = {
   ...MATH_INTRINSICS,
   ...MEMORY_INTRINSICS,
   ...BIT_INTRINSICS,
+  ...TYPE_CONVERSION_INTRINSICS,
+  ...EXTENDED_MATH_INTRINSICS,
+  ...TENSOR_INTRINSICS,
 };
 
 // Helper function to get intrinsic info
